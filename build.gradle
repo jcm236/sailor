@@ -85,6 +85,7 @@ mixin {
 configurations {
     shade
     implementation.extendsFrom shade
+    minecraftLibrary.extendsFrom shade
 }
 
 repositories {

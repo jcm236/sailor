@@ -16,6 +16,18 @@ public class GerstnerWave {
     private double steepness;  // Q (often derived from amplitude and wavelength)
     private double phaseConstant; // phi (derived from wavelength and gravity)
 
+    // Define ranges for wave parameters
+    private static float minAmplitude = 0.2f;
+    private static float maxAmplitude = 2.5f; // wave height
+
+    private static float minWavelength = 5.0f;
+    private static float maxWavelength = 50.0f; // wave size
+
+    private static float minSteepness = 0.3f;
+    private static float maxSteepness = 0.8f; // closer to 1 makes sharper waves
+
+
+
     // Gravity constant (adjust if needed, e.g., for different scales)
     private static final double GRAVITY = 9.8f;
 
@@ -43,6 +55,31 @@ public class GerstnerWave {
         // this.steepness = 0.5f / (k * amplitude); // Example, adjust as needed
     }
 
+    public Vector3d getWaveNormal(float initialX, float initialZ, float time) {
+        // Small value for calculating derivatives numerically
+        float epsilon = 0.001f;
+
+        // Get the position at the original point
+        Vector3d p0 = getWavePosition(initialX, initialZ, time);
+
+        // Get the position slightly offset in X
+        Vector3d px = getWavePosition(initialX + epsilon, initialZ, time);
+
+        // Get the position slightly offset in Z
+        Vector3d pz = getWavePosition(initialX, initialZ + epsilon, time);
+
+        // Create tangent vectors
+        Vector3d tangentX = new Vector3d(px.x - p0.x, px.y - p0.y, px.z - p0.z);
+        Vector3d tangentZ = new Vector3d(pz.x - p0.x, pz.y - p0.y, pz.z - p0.z);
+
+        // The normal is the cross product of the tangents
+        // You'll need to implement a cross product function in your Vector3d class
+        Vector3d normal = tangentZ.cross(tangentX);
+        normal.normalize(); // Ensure it's a unit vector
+
+        return normal;
+    }
+
     /**
      * Calculates the position of a point on the wave surface at a given time.
      *
@@ -60,29 +97,63 @@ public class GerstnerWave {
 
         // Calculate displacements
         double displacementX = steepness * amplitude * directionX * (double) Math.cos(phase);
-        double displacementY = amplitude * (double) Math.sin(phase);
+        double displacementY = amplitude * Math.sin(phase);
         double displacementZ = steepness * amplitude * directionZ * (double) Math.cos(phase);
 
         return new Vector3d(initialX + displacementX, displacementY, initialZ + displacementZ);
     }
 
-    public static Vector3d getWaterDisplacement(float x, float y, float z, float time){
-        double totalX = x;
-        double totalY = 0; // The base y level of the water
-        double totalZ = z;
-        Random rand = new Random();
-        List<GerstnerWave> waves = new ArrayList<>();
+//    public static Vector3d getWaterDisplacement(float x, float y, float z, float time, List<GerstnerWave> waves){
+//        double totalX = x;
+//        double totalY = 0; // The base y level of the water
+//        double totalZ = z;
+//
+//        for (GerstnerWave wave : waves) {
+//            Vector3d wavePos = wave.getWavePosition(x, z, time);
+//            // Sum the displacements, not the absolute positions
+//            totalX += (wavePos.x - x); // Only add the displacement from initial x
+//            totalY += wavePos.y;       // Add the height
+//            totalZ += (wavePos.z - z); // Only add the displacement from initial z
+//        }
+//        return new Vector3d(totalX, totalY, totalZ);
+//    }
 
-//        waves.add(new GerstnerWave(rand.nextDouble()))
+    /**
+     * Generates a single GerstnerWave with random parameters within defined ranges.
+     * @return A new GerstnerWave instance.
+     */
+    public GerstnerWave generateRandomWave() {
+        Random random = new Random();
+        float amplitude = minAmplitude + random.nextFloat() * (maxAmplitude - minAmplitude);
+        float wavelength = minWavelength + random.nextFloat() * (maxWavelength - minWavelength);
+        float steepness = minSteepness + random.nextFloat() * (maxSteepness - minSteepness);
 
-        for (GerstnerWave wave : waves) {
-            Vector3d wavePos = wave.getWavePosition(x, z, time);
-            // Sum the displacements, not the absolute positions
-            totalX += (wavePos.x - x); // Only add the displacement from initial x
-            totalY += wavePos.y;       // Add the height
-            totalZ += (wavePos.z - z); // Only add the displacement from initial z
-        }
-        return new Vector3d(totalX-x, totalY-y, totalZ-z);
+        // Random direction: use an angle from 0 to 2*PI radians
+        float angle = random.nextFloat() * 2 * (float) Math.PI;
+        Vector2d direction = new Vector2d((float) Math.cos(angle), (float) Math.sin(angle));
+
+        return new GerstnerWave(amplitude, direction, wavelength, steepness);
     }
 
+    /**
+     * Generates a list of random Gerstner waves.
+     * @param numberOfWaves The number of waves to generate.
+     * @return A list of GerstnerWave instances.
+     */
+    public List<GerstnerWave> generateWaveField(int numberOfWaves) {
+        List<GerstnerWave> waves = new ArrayList<>();
+        for (int i = 0; i < numberOfWaves; i++) {
+            waves.add(generateRandomWave());
+        }
+        return waves;
+    }
+
+    public static Vector3d getWaterSurfaceNormal(float initialX, float initialZ, float time, List<GerstnerWave> waves) {
+        Vector3d totalNormal = new Vector3d();
+        for (GerstnerWave wave : waves) {
+            totalNormal.add(wave.getWaveNormal(initialX, initialZ, time));
+        }
+        totalNormal.normalize();
+        return totalNormal;
+    }
 }
